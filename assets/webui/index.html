@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="設定 AutoDL 自動租用條件、比較檢視快照價格，並產生可直接執行的技能預設。">
+  <meta name="color-scheme" content="light">
+  <title>AutoDL 租用預設 · 規格與價格試算</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="catalog.js" defer></script>
+  <script src="pricing.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="AutoDL 租用預設首頁"><span class="brand-mark" aria-hidden="true">A<span>↗</span></span><span>AutoDL <strong>租用預設</strong></span></a>
+    <span class="topbar-note">規格設定與價格試算</span>
+    <a href="https://www.autodl.com/market/list" class="market-link" target="_blank" rel="noopener noreferrer">開啟算力市場 <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="top" class="workspace">
+    <div class="page-heading">
+      <div>
+        <div class="eyebrow">RENTAL CONFIGURATOR</div>
+        <h1>先定好條件，<br class="mobile-break">空出算力就下單。</h1>
+        <p>把可接受的範圍一次設好。技能會持續刷新，符合條件就租用一台，成功後停止。</p>
+      </div>
+      <div class="snapshot-stamp"><span class="stamp-icon" aria-hidden="true">◷</span><div><span>價格與選項檢視快照</span><strong id="snapshot-date">載入檢視資料中</strong><small id="snapshot-coverage">估價以本次實際檢視資料為準</small></div></div>
+    </div>
+
+    <section class="preset-toolbar" aria-label="管理預設">
+      <div class="preset-title"><span class="small-label">目前預設</span><input id="preset-name" type="text" maxlength="80" placeholder="例如：4090 雙卡訓練" aria-label="預設名稱"></div>
+      <div class="preset-actions">
+        <select id="saved-presets" aria-label="載入已儲存預設"><option value="">載入預設…</option></select>
+        <button type="button" id="save-preset" class="button secondary">儲存</button>
+        <button type="button" id="delete-preset" class="button quiet" disabled>刪除</button>
+        <label class="button quiet import-label" for="import-file">匯入 JSON<input id="import-file" type="file" accept="application/json,.json" class="visually-hidden"></label>
+        <button type="button" id="reset-form" class="button quiet">重設</button>
+      </div>
+    </section>
+
+    <div id="notification" class="notification" role="status" aria-live="polite" hidden></div>
+
+    <div class="config-layout">
+      <form id="config-form" novalidate>
+        <fieldset class="form-section" id="hardware-section">
+          <legend><span class="section-number">01</span>算力規格</legend>
+          <p class="section-description">勾選的型號都在自動租用的允許範圍內；只選你願意租用的型號。</p>
+          <div class="field-header"><label for="gpu-search">可接受 GPU 型號 <span class="required">必填</span></label><span id="gpu-selection-count" class="selection-count">尚未選取</span></div>
+          <input id="gpu-search" type="search" placeholder="搜尋型號" class="search-input" autocomplete="off">
+          <div id="gpu-options" class="option-grid gpu-grid" aria-label="可接受 GPU 型號"></div>
+          <details class="custom-options"><summary>加入未列出的型號</summary><label for="custom-gpu">其他可接受型號</label><input id="custom-gpu" type="text" placeholder="完整型號，以逗號分隔"><small>自訂型號沒有檢視價格時，會標示「未檢視」。</small></details>
+          <div class="field-grid hardware-numbers">
+            <div class="field"><label for="gpu-count">每台 GPU 張數</label><input id="gpu-count" type="number" list="gpu-count-options" value="1" min="1" max="128" step="1" inputmode="numeric" required><datalist id="gpu-count-options"><option value="1"><option value="2"><option value="3"><option value="4"><option value="5"><option value="6"><option value="7"><option value="8"><option value="10"><option value="12"></datalist><small>必須來自同一台主機</small></div>
+            <div class="field"><label for="min-vram">每卡最低顯存 <span class="unit">GB</span></label><input id="min-vram" type="number" min="0" step="1" placeholder="不限" inputmode="numeric"></div>
+            <div class="field"><label for="min-cpu">整台最低 CPU <span class="unit">核心</span></label><input id="min-cpu" type="number" min="0" step="1" placeholder="不限" inputmode="numeric"></div>
+            <div class="field"><label for="min-ram">整台最低記憶體 <span class="unit">GB</span></label><input id="min-ram" type="number" min="0" step="1" placeholder="不限" inputmode="numeric"></div>
+          </div>
+          <div class="field-header region-heading"><span>可接受地區 <span class="required">必填</span></span><div class="text-actions"><button id="all-regions" type="button">全選已檢視地區</button><button id="clear-regions" type="button">清除</button></div></div>
+          <div id="region-options" class="option-grid region-grid" aria-label="可接受地區"></div>
+          <details class="custom-options"><summary>加入其他地區</summary><label for="custom-regions">其他可接受地區</label><input id="custom-regions" type="text" placeholder="完整地區名稱，以逗號分隔"></details>
+        </fieldset>
+
+        <fieldset class="form-section" id="storage-section">
+          <legend><span class="section-number">02</span>數據盤</legend>
+          <p class="section-description">容量以實例的免費與付費數據盤合計。系統盤不計入。</p>
+          <div class="field-grid">
+            <div class="field"><label for="disk-total">最低數據盤總容量 <span class="unit">GB</span></label><input id="disk-total" type="number" min="1" step="1" value="50" inputmode="numeric" required><small>會配置滿足需求所需的最小容量</small></div>
+            <div class="field"><label for="disk-extra-max">最多額外付費容量 <span class="unit">GB</span></label><input id="disk-extra-max" type="number" min="0" step="1" placeholder="不限" inputmode="numeric" disabled><small>留空表示只受總價上限約束</small></div>
+          </div>
+          <label class="check-row"><input id="allow-expansion" type="checkbox"><span><strong>允許付費擴容</strong><small>只在免費容量不足時使用；擴容費納入總價。</small></span></label>
+          <div class="inline-note"><span aria-hidden="true">↳</span><p id="storage-rate-note">付費盤價格依本次檢視資料計算；關機後仍可能計費。</p></div>
+        </fieldset>
+
+        <fieldset class="form-section" id="image-section">
+          <legend><span class="section-number">03</span>鏡像與執行環境</legend>
+          <p class="section-description">先選鏡像來源，再指定可接受版本。所有已填條件須同時符合；留空的版本欄位不設限制。</p>
+          <div class="field-grid">
+            <div class="field"><label for="image-source">鏡像來源</label><select id="image-source"><option value="base">基礎鏡像</option><option value="community">社區鏡像</option><option value="mine">我的鏡像</option><option value="any">任一可用來源</option></select></div>
+            <div class="field" id="framework-field"><label for="image-framework">框架名稱</label><input id="image-framework" type="text" list="framework-options" placeholder="選擇或輸入框架" autocomplete="off"><datalist id="framework-options"></datalist></div>
+          </div>
+          <div class="field-grid" id="image-search-fields">
+            <div class="field"><label for="image-query">鏡像名稱或搜尋詞（選填）</label><input id="image-query" type="text" placeholder="名稱或作者關鍵字"></div>
+            <div class="field"><label for="image-id">精確鏡像 ID（選填）</label><input id="image-id" type="text" placeholder="指定鏡像 ID"></div>
+          </div>
+          <div class="field-grid three-columns" id="version-fields">
+            <div class="field"><label for="framework-versions">框架版本</label><input id="framework-versions" type="text" list="framework-version-options" placeholder="不限；多個以逗號分隔"><datalist id="framework-version-options"></datalist></div>
+            <div class="field"><label for="python-versions">Python 版本</label><input id="python-versions" type="text" list="python-options" placeholder="不限"><datalist id="python-options"></datalist></div>
+            <div class="field"><label for="cuda-versions">CUDA 版本</label><input id="cuda-versions" type="text" list="cuda-options" placeholder="不限"><datalist id="cuda-options"></datalist></div>
+          </div>
+          <label class="check-row" id="any-image-row"><input id="allow-any-image" type="checkbox"><span><strong>允許從此來源任選符合版本條件的鏡像</strong><small>未指定框架、名稱或 ID 時，需明確允許任選。</small></span></label>
+          <small class="section-footnote" id="image-catalog-note">選單列出本次實際檢視的項目。社區與私人鏡像可用搜尋條件或精確 ID 指定。</small>
+          <details class="image-combinations">
+            <summary><span>已檢視基礎鏡像組合</span><span id="image-combination-count">0 組</span></summary>
+            <div class="image-combination-body">
+              <p>每列為本次實際檢視的相容組合；各欄版本不能任意交叉搭配。依上方框架輸入篩選，留空則列出全部。此表只供參考，不會替你選取條件。</p>
+              <p id="image-combination-empty" class="image-combination-empty" hidden></p>
+              <div id="image-combination-table-wrap" class="image-table-scroll">
+                <table class="image-combination-table">
+                  <caption class="visually-hidden">已檢視的基礎鏡像框架、框架版本、Python 與 CUDA 相容組合</caption>
+                  <thead><tr><th scope="col">框架</th><th scope="col">框架版本</th><th scope="col">Python</th><th scope="col">CUDA</th></tr></thead>
+                  <tbody id="image-combination-rows"></tbody>
+                </table>
+              </div>
+            </div>
+          </details>
+        </fieldset>
+
+        <fieldset class="form-section" id="budget-section">
+          <legend><span class="section-number">04</span>計費與價格上限</legend>
+          <p class="section-description">下單時的實際費用必須在上限內。價格超出時，技能會繼續等待其他符合選項。</p>
+          <div class="field-grid">
+            <div class="field"><label for="billing-mode">計費方式</label><select id="billing-mode"><option value="payg">按量計費</option><option value="day">包日</option><option value="week">包周</option><option value="month">包月</option></select></div>
+            <div class="field" id="billing-periods-field" hidden><label for="billing-periods">購買期數</label><input id="billing-periods" type="number" value="1" min="1" step="1" inputmode="numeric"><small id="billing-periods-note">一次購買 1 期</small></div>
+            <div class="field"><label for="price-cap"><span id="price-cap-label">整台含儲存費的最高費率</span> <span class="required">必填</span></label><div class="input-with-unit"><span>¥</span><input id="price-cap" type="number" min="0.0001" step="any" placeholder="設定上限" inputmode="decimal" required><span id="price-cap-unit">/ 小時</span></div></div>
+            <div class="field"><label for="storage-cap">數據盤每日費用上限 <span class="unit">¥ / 日</span></label><input id="storage-cap" type="number" min="0" step="any" placeholder="不限" inputmode="decimal"><small>額外限制；仍會計入整台總價</small></div>
+          </div>
+          <div class="inline-note"><span aria-hidden="true">i</span><p id="billing-note">按量上限約束下單時的費率，並非整段租期的累計費用上限。技能停止後，實例與付費盤仍依 AutoDL 規則計費。</p></div>
+        </fieldset>
+
+        <fieldset class="form-section" id="watch-section">
+          <legend><span class="section-number">05</span>刷新與結束條件</legend>
+          <div class="field-grid">
+            <div class="field"><label for="refresh-seconds">每輪刷新間隔 <span class="unit">秒</span></label><input id="refresh-seconds" type="number" value="15" min="5" step="1" inputmode="numeric" required><small>網站限流時自動延長間隔</small></div>
+            <div class="field"><label for="timeout-minutes">最長等待時間 <span class="unit">分鐘</span></label><input id="timeout-minutes" type="number" min="1" step="1" placeholder="持續至成功或取消" inputmode="numeric"></div>
+          </div>
+          <div class="completion-rule"><span class="completion-check" aria-hidden="true">✓</span><p><strong>只租用一台，成功即停止</strong><span>提交結果不明時先查核訂單，避免重複建立。完整預設可直接執行，無須有庫存後再問條件。</span></p></div>
+        </fieldset>
+      </form>
+
+      <aside class="estimate-sidebar" aria-label="費用預估與執行設定">
+        <section class="estimate-card" aria-labelledby="estimate-heading">
+          <div class="estimate-heading"><span class="eyebrow">ESTIMATED COST</span><span id="estimate-badge" class="badge neutral">待設定</span></div>
+          <h2 id="estimate-heading">依檢視價格試算</h2>
+          <div class="estimate-price"><strong id="estimate-price">—</strong><span id="estimate-unit">/ 小時</span></div>
+          <p id="estimate-range" class="estimate-range">先選取 GPU 與地區</p>
+          <dl class="cost-breakdown"><div><dt>算力費用</dt><dd id="compute-cost">未檢視</dd></div><div><dt>付費數據盤</dt><dd id="storage-cost">未檢視</dd></div><div><dt id="period-cost-label">連續使用 24 小時</dt><dd id="period-cost">未檢視</dd></div></dl>
+          <div id="estimate-warnings" class="estimate-warnings"></div>
+          <div class="estimate-disclaimer"><span class="tiny-dot" aria-hidden="true"></span><span id="estimate-disclaimer-text">歷史檢視價格估算，不代表目前庫存或成交價。</span></div>
+          <div class="summary-divider"></div>
+          <div class="summary-heading"><h3>本次可接受範圍</h3><span id="readiness" class="readiness">尚未完成</span></div>
+          <dl id="selection-summary" class="selection-summary"></dl>
+          <div id="validation-errors" class="validation-errors" role="alert" hidden></div>
+          <button type="button" class="button primary wide" id="copy-invocation">複製技能執行設定 <span aria-hidden="true">↗</span></button>
+          <button type="button" class="button secondary wide" id="download-preset">下載預設 JSON</button>
+          <p class="handoff-note">貼回聊天交給 <code>$autodl-auto-rent</code> 執行。此頁不會租用或啟動實例。</p>
+        </section>
+        <details class="catalog-details"><summary><span>檢視到的價格項目</span><span id="offer-count">0 項</span></summary><div id="offer-list" class="offer-list"></div></details>
+        <div class="local-note"><span aria-hidden="true">◈</span><p>預設只儲存在這個瀏覽器。換裝置時可匯出 JSON；沒有登入憑證或付款資訊。</p></div>
+      </aside>
+    </div>
+    <footer class="page-footer"><span>AutoDL 租用預設</span><span>一份條件 · 一台實例 · 成功即停</span></footer>
+  </main>
+
+  <dialog id="copy-dialog" aria-labelledby="copy-dialog-heading"><div class="dialog-heading"><h2 id="copy-dialog-heading">執行設定已產生</h2><button type="button" class="button quiet" id="close-dialog">關閉</button></div><p>複製以下內容並貼回聊天，技能將依這些條件開始監看與自動下單。</p><textarea id="invocation-output" readonly spellcheck="false" aria-label="技能執行設定"></textarea><button type="button" id="dialog-copy" class="button primary">複製全部</button><span id="dialog-copy-status" role="status" aria-live="polite"></span></dialog>
+</body>
+</html>

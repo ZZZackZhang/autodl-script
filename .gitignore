@@ -1,0 +1,13 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+node_modules/
+.env
+.env.*
+.codex/
+.agents/
+.openai/
+presets/
+runs/
+*.preset.json
+*.log

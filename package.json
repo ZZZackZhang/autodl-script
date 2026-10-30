@@ -1,0 +1,11 @@
+{
+  "name": "autodl-script",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AutoDL rental presets, snapshot pricing, and a Codex skill that orders one matching instance.",
+  "scripts": {
+    "test": "node --test tests/pricing.test.cjs",
+    "check": "node --check assets/webui/app.js && node --check assets/webui/catalog.js && node --check assets/webui/pricing.js",
+    "preview": "python3 -m http.server 8765 --bind 127.0.0.1 --directory assets/webui"
+  }
+}

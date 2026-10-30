@@ -1,0 +1,4 @@
+interface:
+  display_name: "AutoDL 自動租用"
+  short_description: "先設定完整規格與預算範圍，刷新 AutoDL 庫存，自動租用一台後停止"
+  default_prompt: "使用 $autodl-auto-rent，讀取本次完整預設，或先一次補齊規格與價格上限，再持續刷新 AutoDL。找到符合全部條件的主機就直接下單一台，成功後停止。"
